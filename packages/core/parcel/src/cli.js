@@ -416,7 +416,11 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   if (command.name() !== 'build' && command.hmr !== false) {
     let hmrport = command.hmrPort ? parsePort(command.hmrPort) : port;
 
-    hmrOptions = {port: hmrport, host};
+    let runtimePort = command.hmrRuntimePort
+      ? parsePort(command.hmrRuntimePort)
+      : undefined;
+
+    hmrOptions = {port: hmrport, host, runtimePort};
   }
 
   if (command.detailedReport === true) {

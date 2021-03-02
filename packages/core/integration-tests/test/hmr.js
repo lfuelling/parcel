@@ -702,5 +702,69 @@ describe('hmr', function() {
         }
       }
     });
+
+    it("should use the runtimePort if it's set (ex. when running behind a dev proxy)", async () => {
+      let testDir = path.join(__dirname, '/input');
+      await overlayFS.rimraf(testDir);
+      await overlayFS.mkdirp(testDir);
+      await ncp(path.join(__dirname, '/integration/hmr-css'), testDir);
+
+      let port = await getPort();
+      let b = bundler(path.join(testDir, 'index.html'), {
+        inputFS: overlayFS,
+        outputFS: overlayFS,
+        serveOptions: {
+          https: false,
+          port,
+          host: '127.0.0.1',
+        },
+        hmrOptions: {port, runtimePort: 4321},
+        shouldContentHash: false,
+        config,
+      });
+
+      subscription = await b.watch();
+      let bundleEvent = await getNextBuild(b);
+      assert.equal(bundleEvent.type, 'buildSuccess');
+
+      let window;
+      try {
+        let dom = await JSDOM.JSDOM.fromURL(
+          'http://127.0.0.1:' + port + '/index.html',
+          {
+            runScripts: 'dangerously',
+            resources: 'usable',
+            pretendToBeVisual: true,
+          },
+        );
+        window = dom.window;
+        window.WebSocket = WebSocket;
+        await new Promise(res =>
+          dom.window.document.addEventListener('load', () => {
+            res();
+          }),
+        );
+        window.console.clear = () => {};
+        window.console.warn = () => {};
+
+        let initialHref = window.document.querySelector('link').href;
+
+        await overlayFS.copyFile(
+          path.join(testDir, 'index.2.css'),
+          path.join(testDir, 'index.css'),
+        );
+        assert.equal((await getNextBuild(b)).type, 'buildSuccess');
+        await sleep(200);
+
+        let newHref = window.document.querySelector('link').href;
+
+        // the content should not change because HMR is using a different port
+        assert.equal(initialHref, newHref);
+      } finally {
+        if (window) {
+          window.close();
+        }
+      }
+    });
   });
 });

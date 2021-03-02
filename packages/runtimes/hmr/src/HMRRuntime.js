@@ -16,12 +16,15 @@ export default (new Runtime({
       return;
     }
 
-    const {host, port} = options.hmrOptions;
+    const {host, port, runtimePort} = options.hmrOptions;
+
     return {
       filePath: __filename,
       code:
         `var HMR_HOST = ${JSON.stringify(host != null ? host : null)};` +
-        `var HMR_PORT = ${JSON.stringify(port != null ? port : null)};` +
+        `var HMR_PORT = ${JSON.stringify(
+          runtimePort !== undefined ? runtimePort : port,
+        )};` +
         `var HMR_SECURE = ${JSON.stringify(
           !!(options.serveOptions && options.serveOptions.https),
         )};` +
